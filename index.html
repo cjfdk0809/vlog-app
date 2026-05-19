@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#b8623f">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="나의 기록">
 <link rel="manifest" href="manifest.json">
@@ -922,7 +923,7 @@ img { display: block; max-width: 100%; }
 
 <script>
 // ========= 전역 상태 =========
-let supabase = null;
+let sb = null;
 let entries = [];
 let currentFilter = 'all';
 let currentRating = 0;
@@ -969,7 +970,7 @@ function saveSetup() {
 
 function initSupabase(config) {
   try {
-    supabase = window.supabase.createClient(config.url, config.key);
+    sb = window.supabase.createClient(config.url, config.key);
     document.getElementById('setupScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     document.getElementById('bottomNav').style.display = 'flex';
@@ -1019,7 +1020,7 @@ async function loadEntries() {
   const container = document.getElementById('entriesContainer');
   container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('vlog_entries')
       .select('*')
       .order('visited_at', { ascending: false });
@@ -1209,11 +1210,11 @@ async function saveEntry() {
     const photoUrls = [];
     for (const photo of currentPhotos) {
       const path = `${Date.now()}_${photo.name}`;
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await sb.storage
         .from('vlog-photos')
         .upload(path, photo.blob, { contentType: 'image/jpeg' });
       if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from('vlog-photos').getPublicUrl(path);
+      const { data } = sb.storage.from('vlog-photos').getPublicUrl(path);
       photoUrls.push(data.publicUrl);
       btn.textContent = `사진 업로드 ${photoUrls.length}/${currentPhotos.length}`;
     }
@@ -1233,7 +1234,7 @@ async function saveEntry() {
       visited_at: document.getElementById('inputDate').value || new Date().toISOString()
     };
 
-    const { error } = await supabase.from('vlog_entries').insert(entry);
+    const { error } = await sb.from('vlog_entries').insert(entry);
     if (error) throw error;
 
     showToast('저장됨 ✓');
@@ -1310,7 +1311,7 @@ async function deleteCurrentEntry() {
   if (!currentDetailId) return;
   if (!confirm('이 기록을 삭제할까요?')) return;
   try {
-    const { error } = await supabase.from('vlog_entries').delete().eq('id', currentDetailId);
+    const { error } = await sb.from('vlog_entries').delete().eq('id', currentDetailId);
     if (error) throw error;
     showToast('삭제됨');
     closeDetail();
