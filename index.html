@@ -950,6 +950,7 @@ img { display: block; max-width: 100%; }
   <div id="addScreen" class="screen">
     <div class="add-container">
 
+      <!-- 0. 카테고리 -->
       <div class="form-group">
         <label class="form-label">카테고리</label>
         <div class="category-picker">
@@ -965,36 +966,19 @@ img { display: block; max-width: 100%; }
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">사진</label>
-        <div class="photo-upload-area" id="uploadArea">
-          <div class="icon">📷</div>
-          <p>여행과 일상을 담아주세요</p>
-          <div class="upload-buttons">
-            <label class="btn-upload">
-              📸 카메라
-              <input type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="addPhotos(event)">
-            </label>
-            <label class="btn-upload">
-              🖼️ 갤러리
-              <input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos(event)">
-            </label>
-          </div>
-        </div>
-        <div class="photo-preview-grid" id="photoPreviews"></div>
-      </div>
-
+      <!-- 1. 제목 -->
       <div class="form-group">
         <label class="form-label">제목</label>
         <input type="text" class="form-input" id="inputTitle" placeholder="어디서, 무엇을 했나요?" maxlength="100">
       </div>
 
+      <!-- 2. 방문계기 -->
       <div class="form-group">
-        <label class="form-label">기록</label>
-        <textarea class="form-textarea" id="inputDescription" placeholder="느낀 점, 특별했던 순간, 기억하고 싶은 것들..."></textarea>
+        <label class="form-label">방문계기</label>
+        <textarea class="form-textarea" id="inputDescription" placeholder="어떤 계기로 가게 됐나요? 느낀 점, 특별했던 순간..."></textarea>
       </div>
 
-      <!-- 단일 평점 (여행, 일상) -->
+      <!-- 3. 평가 (단일 — 여행, 일상) -->
       <div class="form-group" id="simpleRatingGroup">
         <label class="form-label">평점</label>
         <div class="rating-input" id="ratingInput">
@@ -1006,7 +990,7 @@ img { display: block; max-width: 100%; }
         </div>
       </div>
 
-      <!-- 세부 평점 (맛집 전용) -->
+      <!-- 3+4. 평가 + 재방문 의사 + 선택 사유 (맛집) -->
       <div class="form-group" id="detailedRatingGroup" style="display:none;">
         <label class="form-label">평가</label>
 
@@ -1061,8 +1045,10 @@ img { display: block; max-width: 100%; }
           <button class="revisit-btn" data-revisit="보통" onclick="setRevisit('보통')">보통</button>
           <button class="revisit-btn" data-revisit="비추" onclick="setRevisit('비추')">비추</button>
         </div>
+        <input type="text" class="form-input" id="inputRevisitReason" placeholder="선택한 이유 (선택)" style="margin-top:8px;">
       </div>
 
+      <!-- 5. 장소 -->
       <div class="form-group">
         <label class="form-label">장소</label>
         <div class="location-row">
@@ -1075,24 +1061,49 @@ img { display: block; max-width: 100%; }
         <div class="setup-help" id="gpsInfo"></div>
       </div>
 
+      <!-- 6. 대표메뉴 / 한 일 -->
+      <div class="form-group" id="menuGroup">
+        <label class="form-label">대표메뉴</label>
+        <input type="text" class="form-input" id="inputMenu" placeholder="예: 김치찌개, 계란말이">
+      </div>
+
+      <!-- 7. 가격 -->
       <div class="form-group" id="priceGroup">
         <label class="form-label">가격</label>
         <input type="text" class="form-input" id="inputPrice" placeholder="예: 1인 15,000원">
       </div>
 
-      <div class="form-group" id="menuGroup">
-        <label class="form-label">메뉴 / 한 일</label>
-        <input type="text" class="form-input" id="inputMenu" placeholder="예: 김치찌개, 계란말이">
-      </div>
-
+      <!-- 8. 방문 날짜 -->
       <div class="form-group">
         <label class="form-label">방문 날짜</label>
         <input type="date" class="form-input" id="inputDate">
       </div>
 
+      <!-- 9. 사진 + 사진 설명 -->
+      <div class="form-group">
+        <label class="form-label">사진</label>
+        <div class="photo-upload-area" id="uploadArea">
+          <div class="icon">📷</div>
+          <p>여행과 일상을 담아주세요</p>
+          <div class="upload-buttons">
+            <label class="btn-upload">
+              📸 카메라
+              <input type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="addPhotos(event)">
+            </label>
+            <label class="btn-upload">
+              🖼️ 갤러리
+              <input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos(event)">
+            </label>
+          </div>
+        </div>
+        <div class="photo-preview-grid" id="photoPreviews"></div>
+        <input type="text" class="form-input" id="inputPhotoCaption" placeholder="사진 설명 (선택)" style="margin-top:8px;">
+      </div>
+
       <button class="btn-primary" onclick="saveEntry()" id="saveBtn">저장하기</button>
       <button class="btn-secondary" onclick="resetForm()" style="margin-top:8px;">초기화</button>
     </div>
+
   </div>
 
   <!-- 블로그 변환 화면 -->
@@ -1417,7 +1428,7 @@ function selectCategory(cat) {
   const menuLabel = document.querySelector('#menuGroup .form-label');
   const priceGroup = document.getElementById('priceGroup');
   if (cat === '맛집') {
-    menuLabel.textContent = '메뉴';
+    menuLabel.textContent = '대표메뉴';
     priceGroup.style.display = '';
   } else if (cat === '여행') {
     menuLabel.textContent = '한 일 / 본 것';
@@ -1589,6 +1600,8 @@ async function saveEntry() {
       description: document.getElementById('inputDescription').value.trim() || null,
       rating: finalRating,
       ...detailedFields,
+      revisit_reason: document.getElementById('inputRevisitReason').value.trim() || null,
+      photo_caption: document.getElementById('inputPhotoCaption').value.trim() || null,
       location_name: document.getElementById('inputLocation').value.trim() || null,
       latitude: parseFloat(document.getElementById('inputLat').value) || null,
       longitude: parseFloat(document.getElementById('inputLng').value) || null,
@@ -1631,6 +1644,8 @@ function resetForm() {
   document.getElementById('inputLng').value = '';
   document.getElementById('inputPrice').value = '';
   document.getElementById('inputMenu').value = '';
+  document.getElementById('inputRevisitReason').value = '';
+  document.getElementById('inputPhotoCaption').value = '';
   document.getElementById('gpsInfo').textContent = '';
   document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
   renderPhotoPreviews();
@@ -1644,7 +1659,7 @@ function openDetail(id) {
   const stars = e.rating ? '★'.repeat(e.rating) + '☆'.repeat(5 - e.rating) : '';
   const catClass = e.category === '여행' ? 'travel' : e.category === '일상' ? 'daily' : '';
   const photos = e.photo_urls && e.photo_urls.length > 0
-    ? `<div class="detail-photos">${e.photo_urls.map(u => `<img src="${u}">`).join('')}</div>` : '';
+    ? `<div class="detail-photos">${e.photo_urls.map(u => `<img src="${u}">`).join('')}</div>${e.photo_caption ? `<div style="padding:8px 20px 0;font-size:13px;color:var(--text-secondary);font-style:italic;">📷 ${escapeHtml(e.photo_caption)}</div>` : ''}` : '';
 
   const info = [];
   if (e.location_name) info.push(`<div class="detail-info-row"><span class="label">📍 장소</span><span>${escapeHtml(e.location_name)}</span></div>`);
@@ -1662,6 +1677,7 @@ function openDetail(id) {
     if (e.rating_service) rows.push(`<div class="detail-rating-row"><span class="label">🤝 서비스</span><span class="rating">${mkStars(e.rating_service)}</span></div>`);
     if (e.rating_value) rows.push(`<div class="detail-rating-row"><span class="label">💰 가성비</span><span class="rating">${mkStars(e.rating_value)}</span></div>`);
     if (e.revisit) rows.push(`<div class="detail-rating-row"><span class="label">🔁 재방문 의사</span><span class="revisit-tag">${escapeHtml(e.revisit)}</span></div>`);
+    if (e.revisit_reason) rows.push(`<div class="detail-rating-row" style="font-style:italic;"><span class="label">📝 사유</span><span style="color:var(--text-secondary);font-size:13px;">${escapeHtml(e.revisit_reason)}</span></div>`);
     if (rows.length) detailRatingsHtml = '<div class="detail-ratings-box">' + rows.join('') + '</div>';
   }
 
@@ -1751,7 +1767,9 @@ function generateBlogPost() {
 
   // 사진 자리
   if (e.photo_urls && e.photo_urls.length > 0) {
-    post += `[📷 사진 ${e.photo_urls.length}장 — 아래에서 다운로드 후 업로드]\n\n`;
+    post += `[📷 사진 ${e.photo_urls.length}장 — 아래에서 다운로드 후 업로드]\n`;
+    if (e.photo_caption) post += `↑ ${e.photo_caption}\n`;
+    post += `\n`;
   }
 
   // 본문
@@ -1780,7 +1798,11 @@ function generateBlogPost() {
       post += `\n🍽️ 평가\n`;
       post += ratingLines.join(' │ ') + '\n';
     }
-    if (e.revisit) post += `🔁 재방문 의사 │ ${e.revisit}\n`;
+    if (e.revisit) {
+      post += `🔁 재방문 의사 │ ${e.revisit}`;
+      if (e.revisit_reason) post += ` (${e.revisit_reason})`;
+      post += `\n`;
+    }
   } else if (stars) {
     post += `${stars} (${e.rating}/5)\n`;
   }
