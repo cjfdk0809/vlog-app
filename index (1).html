@@ -758,6 +758,96 @@ img { display: block; max-width: 100%; }
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+
+/* ========= DETAILED RATINGS (맛집 전용) ========= */
+.detailed-rating-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.detailed-rating-row:last-of-type { border-bottom: none; }
+.detailed-rating-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rating-stars-small { display: flex; gap: 2px; }
+.star-btn-small {
+  font-size: 22px;
+  color: var(--border-strong);
+  padding: 2px 3px;
+  transition: color 0.1s, transform 0.15s;
+}
+.star-btn-small.filled { color: var(--accent); }
+.star-btn-small:active { transform: scale(1.15); }
+
+.revisit-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 16px;
+  margin-bottom: 8px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.revisit-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.revisit-btn {
+  padding: 10px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.revisit-btn.selected {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+/* 상세보기에서 세부 평점 표시 */
+.detail-ratings-box {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.detail-rating-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 14px;
+  border-bottom: 1px dashed var(--border);
+}
+.detail-rating-row:last-child { border-bottom: none; }
+.detail-rating-row .label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.detail-rating-row .revisit-tag {
+  background: var(--accent-bg);
+  color: var(--accent-dark);
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
 </style>
 </head>
 <body>
@@ -854,7 +944,8 @@ img { display: block; max-width: 100%; }
         <textarea class="form-textarea" id="inputDescription" placeholder="느낀 점, 특별했던 순간, 기억하고 싶은 것들..."></textarea>
       </div>
 
-      <div class="form-group">
+      <!-- 단일 평점 (여행, 일상) -->
+      <div class="form-group" id="simpleRatingGroup">
         <label class="form-label">평점</label>
         <div class="rating-input" id="ratingInput">
           <button class="star-btn" data-rating="1" onclick="setRating(1)">★</button>
@@ -862,6 +953,63 @@ img { display: block; max-width: 100%; }
           <button class="star-btn" data-rating="3" onclick="setRating(3)">★</button>
           <button class="star-btn" data-rating="4" onclick="setRating(4)">★</button>
           <button class="star-btn" data-rating="5" onclick="setRating(5)">★</button>
+        </div>
+      </div>
+
+      <!-- 세부 평점 (맛집 전용) -->
+      <div class="form-group" id="detailedRatingGroup" style="display:none;">
+        <label class="form-label">평가</label>
+
+        <div class="detailed-rating-row">
+          <span class="detailed-rating-label">🍽️ 맛</span>
+          <div class="rating-stars-small" data-field="taste">
+            <button class="star-btn-small" data-rating="1" onclick="setDetailedRating('taste',1)">★</button>
+            <button class="star-btn-small" data-rating="2" onclick="setDetailedRating('taste',2)">★</button>
+            <button class="star-btn-small" data-rating="3" onclick="setDetailedRating('taste',3)">★</button>
+            <button class="star-btn-small" data-rating="4" onclick="setDetailedRating('taste',4)">★</button>
+            <button class="star-btn-small" data-rating="5" onclick="setDetailedRating('taste',5)">★</button>
+          </div>
+        </div>
+
+        <div class="detailed-rating-row">
+          <span class="detailed-rating-label">🪑 분위기</span>
+          <div class="rating-stars-small" data-field="atmosphere">
+            <button class="star-btn-small" data-rating="1" onclick="setDetailedRating('atmosphere',1)">★</button>
+            <button class="star-btn-small" data-rating="2" onclick="setDetailedRating('atmosphere',2)">★</button>
+            <button class="star-btn-small" data-rating="3" onclick="setDetailedRating('atmosphere',3)">★</button>
+            <button class="star-btn-small" data-rating="4" onclick="setDetailedRating('atmosphere',4)">★</button>
+            <button class="star-btn-small" data-rating="5" onclick="setDetailedRating('atmosphere',5)">★</button>
+          </div>
+        </div>
+
+        <div class="detailed-rating-row">
+          <span class="detailed-rating-label">🤝 서비스</span>
+          <div class="rating-stars-small" data-field="service">
+            <button class="star-btn-small" data-rating="1" onclick="setDetailedRating('service',1)">★</button>
+            <button class="star-btn-small" data-rating="2" onclick="setDetailedRating('service',2)">★</button>
+            <button class="star-btn-small" data-rating="3" onclick="setDetailedRating('service',3)">★</button>
+            <button class="star-btn-small" data-rating="4" onclick="setDetailedRating('service',4)">★</button>
+            <button class="star-btn-small" data-rating="5" onclick="setDetailedRating('service',5)">★</button>
+          </div>
+        </div>
+
+        <div class="detailed-rating-row">
+          <span class="detailed-rating-label">💰 가성비</span>
+          <div class="rating-stars-small" data-field="value">
+            <button class="star-btn-small" data-rating="1" onclick="setDetailedRating('value',1)">★</button>
+            <button class="star-btn-small" data-rating="2" onclick="setDetailedRating('value',2)">★</button>
+            <button class="star-btn-small" data-rating="3" onclick="setDetailedRating('value',3)">★</button>
+            <button class="star-btn-small" data-rating="4" onclick="setDetailedRating('value',4)">★</button>
+            <button class="star-btn-small" data-rating="5" onclick="setDetailedRating('value',5)">★</button>
+          </div>
+        </div>
+
+        <div class="revisit-label">🔁 재방문 의사</div>
+        <div class="revisit-picker">
+          <button class="revisit-btn" data-revisit="강추" onclick="setRevisit('강추')">강추</button>
+          <button class="revisit-btn" data-revisit="추천" onclick="setRevisit('추천')">추천</button>
+          <button class="revisit-btn" data-revisit="보통" onclick="setRevisit('보통')">보통</button>
+          <button class="revisit-btn" data-revisit="비추" onclick="setRevisit('비추')">비추</button>
         </div>
       </div>
 
@@ -1026,6 +1174,8 @@ let sb = null;
 let entries = [];
 let currentFilter = 'all';
 let currentRating = 0;
+let currentRatings = { taste: 0, atmosphere: 0, service: 0, value: 0 };
+let currentRevisit = null;
 let currentCategory = null;
 let currentPhotos = []; // {file, dataUrl} during add
 let currentDetailId = null;
@@ -1187,6 +1337,18 @@ function selectCategory(cat) {
   document.querySelectorAll('.category-option').forEach(o => {
     o.classList.toggle('selected', o.dataset.cat === cat);
   });
+
+  // 평점 UI 전환 (맛집 = 세부 평점, 그 외 = 단일 평점)
+  const simpleGroup = document.getElementById('simpleRatingGroup');
+  const detailedGroup = document.getElementById('detailedRatingGroup');
+  if (cat === '맛집') {
+    simpleGroup.style.display = 'none';
+    detailedGroup.style.display = '';
+  } else {
+    simpleGroup.style.display = '';
+    detailedGroup.style.display = 'none';
+  }
+
   // 카테고리별로 일부 필드 라벨 변경
   const menuLabel = document.querySelector('#menuGroup .form-label');
   const priceGroup = document.getElementById('priceGroup');
@@ -1204,8 +1366,25 @@ function selectCategory(cat) {
 
 function setRating(n) {
   currentRating = (currentRating === n) ? 0 : n;
-  document.querySelectorAll('.star-btn').forEach(b => {
+  document.querySelectorAll('#ratingInput .star-btn').forEach(b => {
     b.classList.toggle('filled', parseInt(b.dataset.rating) <= currentRating);
+  });
+}
+
+function setDetailedRating(field, n) {
+  currentRatings[field] = (currentRatings[field] === n) ? 0 : n;
+  const container = document.querySelector('.rating-stars-small[data-field="' + field + '"]');
+  if (container) {
+    container.querySelectorAll('.star-btn-small').forEach(b => {
+      b.classList.toggle('filled', parseInt(b.dataset.rating) <= currentRatings[field]);
+    });
+  }
+}
+
+function setRevisit(value) {
+  currentRevisit = (currentRevisit === value) ? null : value;
+  document.querySelectorAll('.revisit-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.revisit === currentRevisit);
   });
 }
 
@@ -1318,12 +1497,34 @@ async function saveEntry() {
       btn.textContent = `사진 업로드 ${photoUrls.length}/${currentPhotos.length}`;
     }
 
+    // 평점 정보 계산
+    let finalRating = currentRating || null;
+    let detailedFields = {
+      rating_taste: null, rating_atmosphere: null,
+      rating_service: null, rating_value: null,
+      revisit: null
+    };
+
+    if (currentCategory === '맛집') {
+      // 맛집은 세부 평점에서 평균 계산
+      const vals = [currentRatings.taste, currentRatings.atmosphere, currentRatings.service, currentRatings.value].filter(v => v > 0);
+      finalRating = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0) / vals.length) : null;
+      detailedFields = {
+        rating_taste: currentRatings.taste || null,
+        rating_atmosphere: currentRatings.atmosphere || null,
+        rating_service: currentRatings.service || null,
+        rating_value: currentRatings.value || null,
+        revisit: currentRevisit || null
+      };
+    }
+
     // 2. DB 저장
     const entry = {
       category: currentCategory,
       title,
       description: document.getElementById('inputDescription').value.trim() || null,
-      rating: currentRating || null,
+      rating: finalRating,
+      ...detailedFields,
       location_name: document.getElementById('inputLocation').value.trim() || null,
       latitude: parseFloat(document.getElementById('inputLat').value) || null,
       longitude: parseFloat(document.getElementById('inputLng').value) || null,
@@ -1351,9 +1552,14 @@ async function saveEntry() {
 function resetForm() {
   currentCategory = null;
   currentRating = 0;
+  currentRatings = { taste: 0, atmosphere: 0, service: 0, value: 0 };
+  currentRevisit = null;
   currentPhotos = [];
   document.querySelectorAll('.category-option').forEach(o => o.classList.remove('selected'));
-  document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('filled'));
+  document.querySelectorAll('.star-btn, .star-btn-small').forEach(b => b.classList.remove('filled'));
+  document.querySelectorAll('.revisit-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('simpleRatingGroup').style.display = '';
+  document.getElementById('detailedRatingGroup').style.display = 'none';
   document.getElementById('inputTitle').value = '';
   document.getElementById('inputDescription').value = '';
   document.getElementById('inputLocation').value = '';
@@ -1382,6 +1588,19 @@ function openDetail(id) {
   if (e.menu) info.push(`<div class="detail-info-row"><span class="label">📝 메뉴/내용</span><span>${escapeHtml(e.menu)}</span></div>`);
   if (e.latitude && e.longitude) info.push(`<div class="detail-info-row"><span class="label">🗺️ 좌표</span><span style="font-family:monospace;font-size:11px;">${e.latitude.toFixed(4)}, ${e.longitude.toFixed(4)}</span></div>`);
 
+  // 맛집 세부 평점
+  let detailRatingsHtml = '';
+  if (e.category === '맛집') {
+    const rows = [];
+    const mkStars = (n) => '★'.repeat(n) + '☆'.repeat(5-n);
+    if (e.rating_taste) rows.push(`<div class="detail-rating-row"><span class="label">🍽️ 맛</span><span class="rating">${mkStars(e.rating_taste)}</span></div>`);
+    if (e.rating_atmosphere) rows.push(`<div class="detail-rating-row"><span class="label">🪑 분위기</span><span class="rating">${mkStars(e.rating_atmosphere)}</span></div>`);
+    if (e.rating_service) rows.push(`<div class="detail-rating-row"><span class="label">🤝 서비스</span><span class="rating">${mkStars(e.rating_service)}</span></div>`);
+    if (e.rating_value) rows.push(`<div class="detail-rating-row"><span class="label">💰 가성비</span><span class="rating">${mkStars(e.rating_value)}</span></div>`);
+    if (e.revisit) rows.push(`<div class="detail-rating-row"><span class="label">🔁 재방문 의사</span><span class="revisit-tag">${escapeHtml(e.revisit)}</span></div>`);
+    if (rows.length) detailRatingsHtml = '<div class="detail-ratings-box">' + rows.join('') + '</div>';
+  }
+
   document.getElementById('detailBody').innerHTML = `
     ${photos}
     <div class="detail-body">
@@ -1392,6 +1611,7 @@ function openDetail(id) {
         ${stars ? `<span class="rating">${stars}</span>` : ''}
       </div>
       ${e.description ? `<div class="detail-description">${escapeHtml(e.description)}</div>` : ''}
+      ${detailRatingsHtml}
       ${info.length ? `<div class="detail-info">${info.join('')}</div>` : ''}
     </div>
   `;
@@ -1483,7 +1703,23 @@ function generateBlogPost() {
     post += `${e.category === '맛집' ? '🍴' : '✨'} ${menuLabel} │ ${e.menu}\n`;
   }
   if (e.price) post += `💰 가격 │ ${e.price}\n`;
-  if (stars) post += `${stars} (${e.rating}/5)\n`;
+
+  // 맛집은 세부 평점, 그 외는 단일 별점
+  if (e.category === '맛집') {
+    const mkStars = (n) => '⭐'.repeat(n);
+    const ratingLines = [];
+    if (e.rating_taste) ratingLines.push(`맛 ${mkStars(e.rating_taste)}`);
+    if (e.rating_atmosphere) ratingLines.push(`분위기 ${mkStars(e.rating_atmosphere)}`);
+    if (e.rating_service) ratingLines.push(`서비스 ${mkStars(e.rating_service)}`);
+    if (e.rating_value) ratingLines.push(`가성비 ${mkStars(e.rating_value)}`);
+    if (ratingLines.length > 0) {
+      post += `\n🍽️ 평가\n`;
+      post += ratingLines.join(' │ ') + '\n';
+    }
+    if (e.revisit) post += `🔁 재방문 의사 │ ${e.revisit}\n`;
+  } else if (stars) {
+    post += `${stars} (${e.rating}/5)\n`;
+  }
   post += `📅 방문 │ ${dateStr}\n`;
 
   // 해시태그
