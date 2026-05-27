@@ -848,6 +848,56 @@ img { display: block; max-width: 100%; }
   font-size: 12px;
   font-weight: 600;
 }
+
+/* ========= EXTERNAL MAP SECTION ========= */
+.external-map-section {
+  padding: 16px 20px 24px;
+  border-top: 1px dashed var(--border);
+  margin-top: 8px;
+}
+.external-map-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.external-map-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.external-map-btn {
+  padding: 14px 8px;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.external-map-btn:hover { background: var(--bg-soft); }
+.external-map-btn:active {
+  background: var(--bg-soft);
+  transform: scale(0.97);
+}
+.external-map-btn .emoji-large { font-size: 18px; }
+.external-map-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 10px;
+  line-height: 1.6;
+  text-align: center;
+}
 </style>
 </head>
 <body>
@@ -1141,7 +1191,21 @@ img { display: block; max-width: 100%; }
       <button class="search-btn-go" onclick="doSearch()">검색</button>
     </div>
     <div class="search-results" id="searchResults">
-      <div class="search-empty">검색어를 입력하세요<br><span style="font-size:12px;">예) 캐슬렉스 강남, 스타벅스 광화문</span></div>
+      <div class="search-empty">검색어를 입력하세요<br><span style="font-size:12px;">예) 감일백제로 65, 캐슬렉스 강남</span></div>
+    </div>
+    <div class="external-map-section">
+      <div class="external-map-label">🗺️ 외부 지도에서 검색</div>
+      <div class="external-map-buttons">
+        <button class="external-map-btn" onclick="openExternalMap('kakao')">
+          <span class="emoji-large">🟡</span>카카오맵
+        </button>
+        <button class="external-map-btn" onclick="openExternalMap('naver')">
+          <span class="emoji-large">🟢</span>네이버지도
+        </button>
+      </div>
+      <div class="external-map-hint">
+        외부 지도에서 정확한 장소를 찾은 후<br>장소명을 위 입력 칸이나 장소 칸에 직접 입력해주세요
+      </div>
     </div>
   </div>
 </div>
@@ -1847,16 +1911,7 @@ function updateKakaoKeyStatus() {
 let _lastSearchResults = [];
 
 function openLocationSearch() {
-  const key = loadKakaoKey();
-  if (!key) {
-    showToast('설정에서 카카오 API 키를 먼저 입력하세요');
-    switchScreen('settingsScreen');
-    setTimeout(() => {
-      const el = document.getElementById('kakaoKeyInput');
-      if (el) el.focus();
-    }, 300);
-    return;
-  }
+  // 카카오 키 없어도 외부 지도는 쓸 수 있으니 모달은 열어줌
   document.getElementById('searchModal').classList.add('show');
   const existing = document.getElementById('inputLocation').value.trim();
   const searchInput = document.getElementById('searchInput');
@@ -1865,7 +1920,7 @@ function openLocationSearch() {
     doSearch();
   } else {
     searchInput.value = '';
-    document.getElementById('searchResults').innerHTML = '<div class="search-empty">검색어를 입력하세요<br><span style="font-size:12px;">예) 캐슬렉스 강남, 스타벅스 광화문</span></div>';
+    document.getElementById('searchResults').innerHTML = '<div class="search-empty">검색어를 입력하세요<br><span style="font-size:12px;">예) 감일백제로 65, 캐슬렉스 강남</span></div>';
     setTimeout(() => searchInput.focus(), 100);
   }
 }
@@ -1886,7 +1941,8 @@ async function doSearch() {
   }
   const key = loadKakaoKey();
   if (!key) {
-    showToast('카카오 API 키가 설정되지 않았어요');
+    const resultsDiv = document.getElementById('searchResults');
+    resultsDiv.innerHTML = '<div class="search-empty" style="white-space:pre-line;">카카오 API 자동 검색은 키 설정이 필요해요\n아래 외부 지도에서 바로 검색해주세요 ↓</div>';
     return;
   }
 
@@ -1942,6 +1998,25 @@ function selectSearchedPlace(place) {
   document.getElementById('gpsInfo').textContent = '📍 ' + addr;
   closeLocationSearch();
   showToast(place.place_name + ' 선택됨 ✓');
+}
+
+function openExternalMap(provider) {
+  const searchKeyword = document.getElementById('searchInput').value.trim();
+  const locationKeyword = document.getElementById('inputLocation').value.trim();
+  const keyword = searchKeyword || locationKeyword;
+
+  let url;
+  if (provider === 'kakao') {
+    url = keyword
+      ? 'https://map.kakao.com/?q=' + encodeURIComponent(keyword)
+      : 'https://map.kakao.com';
+  } else {
+    url = keyword
+      ? 'https://map.naver.com/p/search/' + encodeURIComponent(keyword)
+      : 'https://map.naver.com';
+  }
+  window.open(url, '_blank');
+  showToast((provider === 'kakao' ? '카카오맵' : '네이버지도') + ' 열림 📍');
 }
 
 function showToast(msg) {
