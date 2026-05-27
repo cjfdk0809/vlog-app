@@ -1267,9 +1267,30 @@ window.addEventListener('DOMContentLoaded', () => {
   // 오늘 날짜 기본 설정
   document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
 
-  // Service Worker 등록
+  // Service Worker 등록 + 자동 업데이트 감지
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      // 새 버전 감지
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // 새 버전 설치 완료 → 알림 후 자동 새로고침
+            showToast('새 버전이 적용됩니다 ✨');
+            setTimeout(() => location.reload(), 1500);
+          }
+        });
+      });
+    }).catch(()=>{});
+
+    // 다른 탭에서 업데이트한 경우 자동 반영
+    let _refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (_refreshing) return;
+      _refreshing = true;
+      window.location.reload();
+    });
   }
 });
 
