@@ -427,6 +427,36 @@ img { display: block; max-width: 100%; }
   letter-spacing: 0.04em;
 }
 
+.blog-style-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.blog-style-btn {
+  padding: 10px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  border: 1.5px solid var(--border);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.blog-style-btn .style-emoji { font-size: 20px; }
+.blog-style-btn .style-desc { font-size: 10px; font-weight: 500; color: var(--text-tertiary); }
+.blog-style-btn.selected {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+.blog-style-btn.selected .style-desc { color: var(--accent); }
+
 .blog-output {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -1114,6 +1144,20 @@ img { display: block; max-width: 100%; }
         <select class="form-select" id="blogEntrySelect" onchange="generateBlogPost()">
           <option value="">— 기록을 선택하세요 —</option>
         </select>
+        <div class="blog-style-picker" id="blogStylePicker">
+          <button class="blog-style-btn selected" data-style="simple" onclick="setBlogStyle('simple')">
+            <span class="style-emoji">✨</span>심플
+            <span class="style-desc">핵심만 깔끔</span>
+          </button>
+          <button class="blog-style-btn" data-style="emotional" onclick="setBlogStyle('emotional')">
+            <span class="style-emoji">🌿</span>감성
+            <span class="style-desc">서정적 분위기</span>
+          </button>
+          <button class="blog-style-btn" data-style="info" onclick="setBlogStyle('info')">
+            <span class="style-emoji">📋</span>정보
+            <span class="style-desc">실용 정보 중심</span>
+          </button>
+        </div>
       </div>
 
       <div id="blogOutputContainer" style="display:none;">
@@ -1749,7 +1793,61 @@ function populateBlogSelect() {
   document.getElementById('blogOutputContainer').style.display = 'none';
 }
 
-function generateBlogPost() {
+let blogStyle = 'simple';
+
+function setBlogStyle(style) {
+  blogStyle = style;
+  document.querySelectorAll('.blog-style-btn').forEach(b =>
+    b.classList.toggle('selected', b.dataset.style === style));
+  if (document.getElementById('blogEntrySelect').value) generateBlogPost(true);
+}
+
+// 사진을 여러 지점에 고르게 분배 (파워블로그처럼 글 사이사이 배치)
+function distributePhotos(total, slots) {
+  const arr = new Array(slots).fill(0);
+  for (let i = 0; i < total; i++) arr[i % slots]++;
+  return arr;
+}
+function photoBlock(count, caption) {
+  if (!count) return '';
+  let s = count === 1 ? `📷 ────── 사진 ──────\n` : `📷 ───── 사진 ${count}장 ─────\n`;
+  if (caption) s += `${caption}\n`;
+  return s + '\n';
+}
+function starLine(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
+
+// 세부 평점 요약 (맛집)
+function ratingSummary(e, sep) {
+  const parts = [];
+  if (e.rating_taste) parts.push(`맛 ${starLine(e.rating_taste)}`);
+  if (e.rating_atmosphere) parts.push(`분위기 ${starLine(e.rating_atmosphere)}`);
+  if (e.rating_service) parts.push(`서비스 ${starLine(e.rating_service)}`);
+  if (e.rating_value) parts.push(`가성비 ${starLine(e.rating_value)}`);
+  return parts.join(sep || '\n');
+}
+
+function buildHashtags(e) {
+  const tags = [];
+  if (e.location_name) {
+    const loc = e.location_name.replace(/\s+/g, '');
+    tags.push('#' + loc);
+    // 지역명 추정 (첫 어절) 태그
+    const region = e.location_name.trim().split(/\s+/)[0];
+    if (region && region.length <= 6 && region !== loc) tags.push('#' + region);
+  }
+  if (e.category === '맛집') {
+    if (e.menu) e.menu.split(/[,·/]/).map(m => m.trim()).filter(Boolean).slice(0, 2)
+      .forEach(m => tags.push('#' + m.replace(/\s+/g, '')));
+    tags.push('#맛집', '#맛집추천', '#맛집기록', '#먹스타그램');
+  } else if (e.category === '여행') {
+    tags.push('#여행', '#여행기록', '#여행스타그램', '#국내여행');
+  } else {
+    tags.push('#일상', '#데일리', '#소소한일상', '#일상기록');
+  }
+  return [...new Set(tags)].join(' ');
+}
+
+function generateBlogPost(keepStyle) {
   const id = document.getElementById('blogEntrySelect').value;
   if (!id) {
     document.getElementById('blogOutputContainer').style.display = 'none';
@@ -1759,84 +1857,116 @@ function generateBlogPost() {
   if (!e) return;
 
   const dateStr = formatDate(e.visited_at, true);
-  const stars = e.rating ? '⭐'.repeat(e.rating) : '';
-  const categoryEmoji = { '맛집': '🍽️', '여행': '✈️', '일상': '📝' }[e.category];
+  const loc = e.location_name || '';
+  const cat = e.category;
+  const photoCount = (e.photo_urls || []).length;
+  const cap = e.photo_caption || '';
+  const menuLabel = cat === '맛집' ? '메뉴' : cat === '여행' ? '코스' : '한 일';
 
-  let post = `${categoryEmoji} ${e.title}\n`;
-  post += `${'─'.repeat(20)}\n\n`;
+  let post = '';
 
-  // 인트로
-  const intros = {
-    '맛집': [
-      `오늘은 ${e.location_name || '특별한 곳'}에 다녀왔어요.`,
-      `${dateStr}, 맛있는 한 끼를 소개해드려요.`,
-      `요즘 자주 가는 ${e.location_name || '단골집'}을 소개해볼게요.`
-    ],
-    '여행': [
-      `${dateStr}, ${e.location_name || '여행지'}로 떠난 하루.`,
-      `오랜만에 떠난 ${e.location_name || '여행'}의 기록을 남깁니다.`,
-      `${e.location_name || '이곳'}에서의 시간을 기억하고 싶어 글을 남깁니다.`
-    ],
-    '일상': [
-      `${dateStr}의 작은 기록.`,
-      `오늘의 순간들을 남겨봅니다.`,
-      `평범하지만 소중한 하루였어요.`
-    ]
-  };
-  const intro = intros[e.category][Math.floor(Math.random() * intros[e.category].length)];
-  post += intro + '\n\n';
+  if (blogStyle === 'simple') {
+    // ===== 심플 · 핵심만 깔끔하게 =====
+    post += `${e.title}\n\n`;
+    const openers = {
+      '맛집': loc ? `${loc}, 다녀왔어요.` : `요즘 마음에 든 맛집 기록.`,
+      '여행': loc ? `${loc}에서의 하루.` : `가볍게 떠난 하루의 기록.`,
+      '일상': `오늘의 기록.`
+    };
+    post += openers[cat] + '\n\n';
 
-  // 사진 자리
-  if (e.photo_urls && e.photo_urls.length > 0) {
-    post += `[📷 사진 ${e.photo_urls.length}장 — 아래에서 다운로드 후 업로드]\n`;
-    if (e.photo_caption) post += `↑ ${e.photo_caption}\n`;
-    post += `\n`;
-  }
+    const slots = distributePhotos(photoCount, 2);
+    post += photoBlock(slots[0], cap);
 
-  // 본문
-  if (e.description) {
-    post += e.description + '\n\n';
-  }
+    if (e.description) post += e.description.trim() + '\n\n';
+    post += photoBlock(slots[1]);
 
-  // 정보
-  post += `${'·'.repeat(20)}\n\n`;
-  if (e.location_name) post += `📍 장소 │ ${e.location_name}\n`;
-  if (e.menu) {
-    const menuLabel = e.category === '맛집' ? '메뉴' : e.category === '여행' ? '한 일' : '내용';
-    post += `${e.category === '맛집' ? '🍴' : '✨'} ${menuLabel} │ ${e.menu}\n`;
-  }
-  if (e.price) post += `💰 가격 │ ${e.price}\n`;
-
-  // 맛집은 세부 평점, 그 외는 단일 별점
-  if (e.category === '맛집') {
-    const mkStars = (n) => '⭐'.repeat(n);
-    const ratingLines = [];
-    if (e.rating_taste) ratingLines.push(`맛 ${mkStars(e.rating_taste)}`);
-    if (e.rating_atmosphere) ratingLines.push(`분위기 ${mkStars(e.rating_atmosphere)}`);
-    if (e.rating_service) ratingLines.push(`서비스 ${mkStars(e.rating_service)}`);
-    if (e.rating_value) ratingLines.push(`가성비 ${mkStars(e.rating_value)}`);
-    if (ratingLines.length > 0) {
-      post += `\n🍽️ 평가\n`;
-      post += ratingLines.join(' │ ') + '\n';
+    // 한 줄 총평
+    if (cat === '맛집') {
+      const rs = ratingSummary(e, '  ·  ');
+      if (rs) post += rs + '\n';
+      if (e.revisit) post += `👉 재방문 ${e.revisit}${e.revisit_reason ? ` — ${e.revisit_reason}` : ''}\n`;
+    } else if (e.rating) {
+      post += `${starLine(e.rating)}\n`;
     }
-    if (e.revisit) {
-      post += `🔁 재방문 의사 │ ${e.revisit}`;
-      if (e.revisit_reason) post += ` (${e.revisit_reason})`;
-      post += `\n`;
-    }
-  } else if (stars) {
-    post += `${stars} (${e.rating}/5)\n`;
-  }
-  post += `📅 방문 │ ${dateStr}\n`;
+    post += '\n';
 
-  // 해시태그
-  post += `\n${'·'.repeat(20)}\n\n`;
-  const tags = ['#' + e.category, '#일상기록', '#vlog'];
-  if (e.location_name) tags.push('#' + e.location_name.replace(/\s+/g, ''));
-  if (e.category === '맛집') tags.push('#맛집추천', '#맛집기록');
-  if (e.category === '여행') tags.push('#여행스타그램', '#여행기록');
-  if (e.category === '일상') tags.push('#데일리', '#소소한일상');
-  post += tags.join(' ');
+    // 간단 정보 한 줄
+    const info = [];
+    if (loc) info.push(`📍 ${loc}`);
+    if (e.menu) info.push(`🍴 ${e.menu}`);
+    if (e.price) info.push(`💰 ${e.price}`);
+    info.push(`📅 ${dateStr}`);
+    post += info.join('\n') + '\n\n';
+    post += buildHashtags(e);
+
+  } else if (blogStyle === 'emotional') {
+    // ===== 감성 · 서정적인 분위기 =====
+    const feels = {
+      '맛집': loc
+        ? `문득 생각나는 맛이 있다.\n${dateStr}, ${loc}에 다녀왔다.`
+        : `오늘은 조금 특별한 한 끼를 남겨본다.`,
+      '여행': loc
+        ? `${dateStr}, ${loc}으로 향했다.\n일상에서 잠시 벗어나고 싶던 날.`
+        : `떠나고 싶던 마음을 따라 길을 나섰다.`,
+      '일상': `${dateStr},\n평범해서 더 소중한 하루를 적어둔다.`
+    };
+    post += feels[cat] + '\n\n';
+
+    const slots = distributePhotos(photoCount, 3);
+    post += photoBlock(slots[0], cap);
+
+    if (loc && cat !== '일상') post += `${loc}.\n첫인상부터 마음에 들었다.\n\n`;
+    post += photoBlock(slots[1]);
+
+    if (e.description) post += e.description.trim() + '\n\n';
+
+    if (cat === '맛집' && e.menu) post += `${e.menu}.\n오래 기억에 남을 맛이었다.\n\n`;
+    post += photoBlock(slots[2]);
+
+    // 여운 있는 마무리
+    if (cat === '맛집') {
+      const rs = ratingSummary(e, '  ·  ');
+      if (rs) post += rs + '\n';
+      if (e.revisit) post += `${e.revisit === '강추' || e.revisit === '추천' ? '또 오고 싶다.' : '기억해둘 곳.'} (재방문 ${e.revisit})\n\n`;
+    } else if (e.rating) {
+      post += `${starLine(e.rating)}\n\n`;
+    }
+    post += `오늘의 기록 끝.\n\n`;
+    post += buildHashtags(e);
+
+  } else {
+    // ===== 정보 · 실용 정보 중심 =====
+    const emoji = { '맛집': '🍽️', '여행': '✈️', '일상': '📝' }[cat];
+    post += `${emoji} ${e.title}\n\n`;
+    if (loc) post += `${loc} 방문 후기입니다.\n\n`;
+
+    const slots = distributePhotos(photoCount, 2);
+    post += photoBlock(slots[0], cap);
+
+    // 매장/방문 정보 블록
+    post += `📌 기본 정보\n`;
+    if (loc) post += `· 장소 : ${loc}\n`;
+    if (e.menu) post += `· ${menuLabel} : ${e.menu}\n`;
+    if (e.price) post += `· 가격 : ${e.price}\n`;
+    post += `· 방문일 : ${dateStr}\n\n`;
+
+    if (e.description) post += `📝 후기\n${e.description.trim()}\n\n`;
+    post += photoBlock(slots[1]);
+
+    // 평점 표
+    if (cat === '맛집') {
+      const rs = ratingSummary(e, '\n');
+      if (rs) post += `⭐ 평가\n${rs}\n`;
+      if (e.revisit) post += `· 재방문 의사 : ${e.revisit}${e.revisit_reason ? ` (${e.revisit_reason})` : ''}\n`;
+      post += '\n';
+    } else if (e.rating) {
+      post += `⭐ 평점 : ${starLine(e.rating)} (${e.rating}/5)\n\n`;
+    }
+    post += buildHashtags(e);
+  }
+
+  post = post.replace(/\n{3,}/g, '\n\n').trim();
 
   document.getElementById('blogOutput').textContent = post;
   document.getElementById('blogOutputContainer').style.display = 'block';
