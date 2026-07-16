@@ -478,6 +478,26 @@ img { display: block; max-width: 100%; }
 .blog-actions .btn-primary { margin-top: 0; flex: 1; }
 .blog-actions .btn-secondary { margin-top: 0; flex: 1; }
 
+.btn-naver {
+  width: 100%;
+  margin-top: 8px;
+  padding: 15px;
+  background: #03c75a;
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 700;
+  transition: filter 0.15s;
+}
+.btn-naver:active { filter: brightness(0.92); }
+.naver-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
 .blog-photos {
   margin-top: 16px;
   padding: 16px;
@@ -1166,6 +1186,8 @@ img { display: block; max-width: 100%; }
           <button class="btn-secondary" onclick="regenerateBlog()">🔄 다시 만들기</button>
           <button class="btn-primary" onclick="copyBlogPost()">📋 복사하기</button>
         </div>
+        <button class="btn-naver" onclick="openNaverWrite()">🟢 네이버 블로그에 올리기</button>
+        <p class="naver-hint">복사 후 글쓰기 화면이 열려요 · 에디터에 붙여넣고 사진만 올리면 끝</p>
 
         <div class="blog-photos" id="blogPhotosBox" style="display:none;">
           <h3>📸 사진 (네이버에 별도 업로드)</h3>
@@ -1205,6 +1227,17 @@ img { display: block; max-width: 100%; }
         <input type="text" class="form-input" id="kakaoKeyInput" placeholder="REST API 키 (예: a1b2c3d4...)" style="margin-bottom:8px;">
         <button class="btn-secondary" onclick="saveKakaoKey()" style="margin-top:0;">저장</button>
         <p style="font-size:12px;color:var(--text-tertiary);margin-top:8px;" id="kakaoKeyStatus"></p>
+      </div>
+
+      <div class="settings-section">
+        <h2>🟢 네이버 블로그 연결</h2>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px;">
+          블로그 아이디를 저장하면 <b>[네이버에 올리기]</b> 버튼이 글쓰기 화면으로 바로 연결돼요.<br>
+          <span style="color:var(--text-tertiary);font-size:12px;">예) blog.naver.com/<b>myblogid</b> → myblogid</span>
+        </p>
+        <input type="text" class="form-input" id="naverIdInput" placeholder="네이버 블로그 아이디" autocapitalize="none" autocorrect="off" style="margin-bottom:8px;">
+        <button class="btn-secondary" onclick="saveNaverId()" style="margin-top:0;">저장</button>
+        <p style="font-size:12px;color:var(--text-tertiary);margin-top:8px;" id="naverIdStatus"></p>
       </div>
 
       <div class="settings-section">
@@ -1401,7 +1434,7 @@ function switchScreen(screenId) {
   window.scrollTo(0, 0);
 
   if (screenId === 'blogScreen') populateBlogSelect();
-  if (screenId === 'settingsScreen') { updateStats(); updateKakaoKeyStatus(); }
+  if (screenId === 'settingsScreen') { updateStats(); updateKakaoKeyStatus(); updateNaverIdStatus(); }
 }
 
 // ========= 피드 =========
@@ -2006,6 +2039,66 @@ async function copyBlogPost() {
     document.execCommand('copy');
     document.body.removeChild(ta);
     showToast('복사됨 ✓');
+  }
+}
+
+// 동기 복사 (window.open 사용자 제스처 유지용)
+function copyToClipboardSync(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.top = '-9999px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+  if (navigator.clipboard) { navigator.clipboard.writeText(text).catch(() => {}); }
+  return ok;
+}
+
+function openNaverWrite() {
+  const text = document.getElementById('blogOutput').textContent;
+  if (!text) { showToast('먼저 변환할 기록을 선택하세요'); return; }
+  copyToClipboardSync(text);
+  const id = (localStorage.getItem('naverBlogId') || '').trim();
+  const url = id
+    ? `https://blog.naver.com/${encodeURIComponent(id)}?Redirect=Write`
+    : 'https://section.blog.naver.com/BlogHome.naver';
+  window.open(url, '_blank');
+  if (id) {
+    showToast('복사됨 ✓ 에디터에 붙여넣기(길게 누르기) 하세요');
+  } else {
+    showToast('설정에서 블로그 아이디를 저장하면 글쓰기로 바로 연결돼요');
+  }
+}
+
+// ========= 네이버 블로그 아이디 =========
+function saveNaverId() {
+  const input = document.getElementById('naverIdInput');
+  let id = input.value.trim();
+  if (!id) { showToast('블로그 아이디를 입력해주세요'); return; }
+  // 전체 URL을 붙여넣어도 아이디만 추출
+  const m = id.match(/blog\.naver\.com\/([A-Za-z0-9_-]+)/);
+  if (m) id = m[1];
+  id = id.replace(/^@/, '').replace(/\/.*$/, '');
+  localStorage.setItem('naverBlogId', id);
+  updateNaverIdStatus();
+  showToast('저장됐어요 ✓');
+}
+
+function updateNaverIdStatus() {
+  const id = (localStorage.getItem('naverBlogId') || '').trim();
+  const status = document.getElementById('naverIdStatus');
+  const input = document.getElementById('naverIdInput');
+  if (id) {
+    if (input && !input.value) input.value = id;
+    status.innerHTML = `연결됨 ✓ <b>blog.naver.com/${escapeHtml(id)}</b>`;
+    status.style.color = 'var(--accent-dark)';
+  } else {
+    status.textContent = '아직 저장된 아이디가 없어요';
+    status.style.color = 'var(--text-tertiary)';
   }
 }
 
