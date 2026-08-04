@@ -612,6 +612,45 @@ img { display: block; max-width: 100%; }
   border-radius: 999px;
 }
 .modal-delete { color: #c44f4f; }
+.modal-header-actions { display: flex; gap: 4px; }
+.modal-edit { color: var(--accent-dark); font-weight: 600; }
+
+.edit-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-dark);
+}
+.edit-banner button {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.photo-preview.existing::after {
+  content: '기존';
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  background: rgba(43, 34, 24, 0.72);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
 
 .detail-photos {
   display: flex;
@@ -1000,6 +1039,12 @@ img { display: block; max-width: 100%; }
   <div id="addScreen" class="screen">
     <div class="add-container">
 
+      <!-- 수정 모드 안내 배너 -->
+      <div class="edit-banner" id="editBanner" style="display:none;">
+        <span>✏️ 기록을 수정하고 있어요</span>
+        <button type="button" onclick="cancelEdit()">취소</button>
+      </div>
+
       <!-- 0. 카테고리 -->
       <div class="form-group">
         <label class="form-label">카테고리</label>
@@ -1260,7 +1305,10 @@ img { display: block; max-width: 100%; }
     <div class="modal-handle"></div>
     <div class="modal-header">
       <button class="modal-close" onclick="closeDetail()">닫기</button>
-      <button class="modal-delete" onclick="deleteCurrentEntry()">삭제</button>
+      <div class="modal-header-actions">
+        <button class="modal-edit" onclick="startEdit()">수정</button>
+        <button class="modal-delete" onclick="deleteCurrentEntry()">삭제</button>
+      </div>
     </div>
     <div id="detailBody"></div>
   </div>
@@ -1331,6 +1379,8 @@ let currentRevisit = null;
 let currentCategory = null;
 let currentPhotos = []; // {file, dataUrl} during add
 let currentDetailId = null;
+let editingId = null;        // 수정 중인 기록 id (null이면 새 기록)
+let existingPhotos = [];     // 수정 시 유지할 기존 사진 URL 목록
 
 // ========= 초기화 =========
 window.addEventListener('DOMContentLoaded', () => {
@@ -1433,6 +1483,7 @@ function switchScreen(screenId) {
 
   window.scrollTo(0, 0);
 
+  if (screenId === 'addScreen') updateAddScreenMode();
   if (screenId === 'blogScreen') populateBlogSelect();
   if (screenId === 'settingsScreen') { updateStats(); updateKakaoKeyStatus(); updateNaverIdStatus(); }
 }
@@ -1564,7 +1615,7 @@ function setRevisit(value) {
 async function addPhotos(event) {
   const files = Array.from(event.target.files);
   for (const file of files) {
-    if (currentPhotos.length >= 9) {
+    if (existingPhotos.length + currentPhotos.length >= 9) {
       showToast('사진은 최대 9장까지');
       break;
     }
@@ -1577,16 +1628,28 @@ async function addPhotos(event) {
 
 function renderPhotoPreviews() {
   const container = document.getElementById('photoPreviews');
-  container.innerHTML = currentPhotos.map((p, i) => `
+  const existingHtml = existingPhotos.map((url, i) => `
+    <div class="photo-preview existing">
+      <img src="${url}">
+      <button class="remove-btn" onclick="removeExistingPhoto(${i})">×</button>
+    </div>
+  `).join('');
+  const newHtml = currentPhotos.map((p, i) => `
     <div class="photo-preview">
       <img src="${p.dataUrl}">
       <button class="remove-btn" onclick="removePhoto(${i})">×</button>
     </div>
   `).join('');
+  container.innerHTML = existingHtml + newHtml;
 }
 
 function removePhoto(i) {
   currentPhotos.splice(i, 1);
+  renderPhotoPreviews();
+}
+
+function removeExistingPhoto(i) {
+  existingPhotos.splice(i, 1);
   renderPhotoPreviews();
 }
 
@@ -1657,8 +1720,9 @@ async function saveEntry() {
   btn.textContent = '저장 중...';
 
   try {
-    // 1. 사진 업로드
-    const photoUrls = [];
+    // 1. 새 사진 업로드 (수정 시 기존 사진은 그대로 유지)
+    const photoUrls = editingId ? existingPhotos.slice() : [];
+    let uploaded = 0;
     for (const photo of currentPhotos) {
       const path = `${Date.now()}_${photo.name}`;
       const { error: uploadError } = await sb.storage
@@ -1667,7 +1731,8 @@ async function saveEntry() {
       if (uploadError) throw uploadError;
       const { data } = sb.storage.from('vlog-photos').getPublicUrl(path);
       photoUrls.push(data.publicUrl);
-      btn.textContent = `사진 업로드 ${photoUrls.length}/${currentPhotos.length}`;
+      uploaded++;
+      btn.textContent = `사진 업로드 ${uploaded}/${currentPhotos.length}`;
     }
 
     // 평점 정보 계산
@@ -1709,18 +1774,23 @@ async function saveEntry() {
       visited_at: document.getElementById('inputDate').value || new Date().toISOString()
     };
 
-    const { error } = await sb.from('vlog_entries').insert(entry);
-    if (error) throw error;
-
-    showToast('저장됨 ✓');
+    if (editingId) {
+      const { error } = await sb.from('vlog_entries').update(entry).eq('id', editingId);
+      if (error) throw error;
+      showToast('수정됨 ✓');
+    } else {
+      const { error } = await sb.from('vlog_entries').insert(entry);
+      if (error) throw error;
+      showToast('저장됨 ✓');
+    }
     resetForm();
     await loadEntries();
     switchScreen('feedScreen');
   } catch (e) {
-    showToast('저장 실패: ' + e.message);
+    showToast((editingId ? '수정 실패: ' : '저장 실패: ') + e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = '저장하기';
+    btn.textContent = editingId ? '수정 저장' : '저장하기';
   }
 }
 
@@ -1730,6 +1800,8 @@ function resetForm() {
   currentRatings = { taste: 0, atmosphere: 0, service: 0, value: 0 };
   currentRevisit = null;
   currentPhotos = [];
+  existingPhotos = [];
+  editingId = null;
   document.querySelectorAll('.category-option').forEach(o => o.classList.remove('selected'));
   document.querySelectorAll('.star-btn, .star-btn-small').forEach(b => b.classList.remove('filled'));
   document.querySelectorAll('.revisit-btn').forEach(b => b.classList.remove('selected'));
@@ -1747,6 +1819,7 @@ function resetForm() {
   document.getElementById('gpsInfo').textContent = '';
   document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
   renderPhotoPreviews();
+  updateAddScreenMode();
 }
 
 // ========= 상세 보기 =========
@@ -1815,6 +1888,91 @@ async function deleteCurrentEntry() {
     loadEntries();
   } catch (e) {
     showToast('삭제 실패');
+  }
+}
+
+// ========= 기록 수정 =========
+function startEdit() {
+  const e = entries.find(x => x.id === currentDetailId);
+  if (!e) return;
+
+  resetForm();          // 폼을 깨끗이 비운 뒤 기존 값으로 채운다
+  editingId = e.id;
+
+  // 카테고리 (평점 UI/라벨도 함께 전환됨)
+  selectCategory(e.category);
+
+  // 텍스트 필드
+  document.getElementById('inputTitle').value = e.title || '';
+  document.getElementById('inputDescription').value = e.description || '';
+  document.getElementById('inputLocation').value = e.location_name || '';
+  document.getElementById('inputLat').value = e.latitude != null ? e.latitude : '';
+  document.getElementById('inputLng').value = e.longitude != null ? e.longitude : '';
+  document.getElementById('inputPrice').value = e.price || '';
+  document.getElementById('inputMenu').value = e.menu || '';
+  document.getElementById('inputRevisitReason').value = e.revisit_reason || '';
+  document.getElementById('inputPhotoCaption').value = e.photo_caption || '';
+  if (e.visited_at) {
+    document.getElementById('inputDate').value = new Date(e.visited_at).toISOString().split('T')[0];
+  }
+  if (e.latitude != null && e.longitude != null) {
+    document.getElementById('gpsInfo').textContent = `📍 위도 ${e.latitude}, 경도 ${e.longitude}`;
+  }
+
+  // 평점
+  if (e.category === '맛집') {
+    currentRatings = {
+      taste: e.rating_taste || 0,
+      atmosphere: e.rating_atmosphere || 0,
+      service: e.rating_service || 0,
+      value: e.rating_value || 0
+    };
+    document.querySelectorAll('.rating-stars-small').forEach(container => {
+      const field = container.dataset.field;
+      container.querySelectorAll('.star-btn-small').forEach(b => {
+        b.classList.toggle('filled', parseInt(b.dataset.rating) <= (currentRatings[field] || 0));
+      });
+    });
+    currentRevisit = e.revisit || null;
+    document.querySelectorAll('.revisit-btn').forEach(b => {
+      b.classList.toggle('selected', b.dataset.revisit === currentRevisit);
+    });
+  } else {
+    currentRating = e.rating || 0;
+    document.querySelectorAll('#ratingInput .star-btn').forEach(b => {
+      b.classList.toggle('filled', parseInt(b.dataset.rating) <= currentRating);
+    });
+  }
+
+  // 사진: 기존 사진은 유지 대상으로, 새 사진은 빈 상태로 시작
+  existingPhotos = Array.isArray(e.photo_urls) ? e.photo_urls.slice() : [];
+  currentPhotos = [];
+  renderPhotoPreviews();
+
+  closeDetail();
+  switchScreen('addScreen');
+  updateAddScreenMode();
+}
+
+function cancelEdit() {
+  resetForm();
+  switchScreen('feedScreen');
+}
+
+// 수정/추가 모드에 맞춰 화면 제목·저장 버튼·배너를 동기화
+function updateAddScreenMode() {
+  const banner = document.getElementById('editBanner');
+  const saveBtn = document.getElementById('saveBtn');
+  if (editingId) {
+    banner.style.display = 'flex';
+    saveBtn.textContent = '수정 저장';
+    if (document.getElementById('addScreen').classList.contains('active')) {
+      document.getElementById('screenTitle').textContent = '기록 수정';
+      document.getElementById('screenSubtitle').textContent = '내용을 고쳐요';
+    }
+  } else {
+    banner.style.display = 'none';
+    saveBtn.textContent = '저장하기';
   }
 }
 
